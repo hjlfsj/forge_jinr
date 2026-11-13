@@ -1,4 +1,6 @@
-#pragma once
+//#pragma once
+#ifndef __RAW_DSSD_EVENT__
+#define __RAW_DSSD_EVENT__
 
 #include <string>
 
@@ -22,3 +24,5 @@ void SetupInput(TTree *tree, RawDssdEvent &event, const std::string &prefix = ""
 void SetupOutput(TTree *tree, RawDssdEvent &event);
 
 }
+
+#endif

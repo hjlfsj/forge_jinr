@@ -1,5 +1,6 @@
-#pragma once
-
+//#pragma once
+#ifndef __RAW_BEAM_EVENT__
+#define __RAW_BEAM_EVENT__
 #include <string>
 
 #include <TTree.h>
@@ -23,3 +24,5 @@ void SetupOutput(TTree *tree, RawBeamEvent &event);
 
 
 }
+
+#endif

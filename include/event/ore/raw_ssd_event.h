@@ -1,5 +1,6 @@
-#pragma once
-
+//#pragma once
+#ifndef __RAW_SSD_EVENT__
+#define __RAW_SSD_EVENT__
 #include <string>
 
 #include <TTree.h>
@@ -41,3 +42,5 @@ void SetupInput_trace(
 
 void SetupOutput_trace(TTree *tree, Rawssd_with_trace_Event &event);
 }
+
+#endif

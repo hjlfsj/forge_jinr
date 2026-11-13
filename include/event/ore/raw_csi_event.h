@@ -1,4 +1,6 @@
-#pragma once
+//#pragma once
+#ifndef __RAW_CSI_EVENT__
+#define __RAW_CSI_EVENT__
 
 #include <string>
 
@@ -34,3 +36,5 @@ void SetupInput_trace(TTree *tree, RawCsi_trace_Event &event, const std::string 
 void SetupOutput_trace(TTree *tree, RawCsi_trace_Event &event);
 
 }
+
+#endif
