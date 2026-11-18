@@ -13,43 +13,50 @@
 
 namespace {
 
-constexpr int kT0d2CrusherNum = 9;
-constexpr int kT0d2Modules[kT0d2CrusherNum] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-constexpr int kT0d2Rates[kT0d2CrusherNum] = {250, 250, 250, 250, 250, 250, 250, 250, 250};
+constexpr int kT0d2CrusherNum = 5;
+constexpr int kT0d2Modules[kT0d2CrusherNum] = {3, 4, 5, 6, 8};
+constexpr int kT0d2Rates[kT0d2CrusherNum] = {100, 100, 100, 100, 100};
 
 bool MapT0d2Event(const forgerib::DecodeEvent &decode, forgerib::RawDssdEvent &dssd) {
 	switch (decode.module) {
-	case 0:
-		if (decode.channel == 14) {
-			dssd.side = forgerib::kDssdSideFront;
-			dssd.strip = 15;
-			break;
-		} else if (decode.channel == 15) {
-			dssd.side = forgerib::kDssdSideBack;
-			dssd.strip = 16;
-			break;
-		} else {
-			return false;
-		}
-	case 1:
-		if (decode.channel == 15) return false;
+	case 3:
 		dssd.side = forgerib::kDssdSideFront;
 		dssd.strip = decode.channel;
 		break;
-	case 2:
-	case 3:
 	case 4:
+		if (decode.channel == 6) return false;
 		dssd.side = forgerib::kDssdSideFront;
-		dssd.strip = decode.channel + (decode.module - 1) * 16;
+		dssd.strip = decode.channel + 16;
 		break;
 	case 5:
-	case 7:
-	case 8:
-		dssd.side = forgerib::kDssdSideBack;
-		dssd.strip = decode.channel + (decode.module - 5) * 16;
+		switch (decode.channel) {
+		case 0:
+			dssd.side = forgerib::kDssdSideFront;
+			dssd.strip = 22;
+			break;
+		case 1:
+			dssd.side = forgerib::kDssdSideBack;
+			dssd.strip = 1;
+			break;
+		case 2:
+			dssd.side = forgerib::kDssdSideBack;
+			dssd.strip = 23;
+			break;
+		case 3:
+			dssd.side = forgerib::kDssdSideBack;
+			dssd.strip = 31;
+			break;
+		default:
+			return false;
+		}
 		break;
 	case 6:
-		if (decode.channel == 0) return false;
+		if (decode.channel == 1) return false;
+		dssd.side = forgerib::kDssdSideBack;
+		dssd.strip = decode.channel;
+		break;
+	case 8:
+		if (decode.channel == 7 || decode.channel == 15) return false;
 		dssd.side = forgerib::kDssdSideBack;
 		dssd.strip = decode.channel + 16;
 		break;

@@ -7,6 +7,9 @@ target_link_libraries(crush_trigger PRIVATE config raw_reader raw_trigger_event)
 add_executable(crush_beam crush_beam.cpp)
 target_link_libraries(crush_beam PRIVATE config crusher raw_beam_event)
 
+add_executable(crush_gagg crush_gagg.cpp)
+target_link_libraries(crush_gagg PRIVATE config crusher raw_csi_event)
+
 add_executable(crush_t0d1 crush_t0d1.cpp)
 target_link_libraries(crush_t0d1 PRIVATE config crusher raw_dssd_event)
 

@@ -32,7 +32,7 @@ int CrushTrigger(
 	}
 	size_t last_percentage = 0;
 
-	forgerib::RawReader reader(raw_path, raw_prefix, run, 0, 0, 250);
+	forgerib::RawReader reader(raw_path, raw_prefix, run, 0, 0, 500);
 	forgerib::DecodeEvent event;
 	forgerib::RawExternalTime *external_time = nullptr;
 
@@ -47,8 +47,10 @@ int CrushTrigger(
 		size_t read_bytes = reader.Read(&event, nullptr, nullptr, &external_time);
 		if (read_bytes >= 16) bytes += read_bytes;
 		else if (read_bytes == 0) break;
-		if (event.channel >= 4 && event.channel <= 9 && external_time) {
-			trigger.type = event.channel - 4;
+		if ((event.channel == 2 || event.channel == 3) && external_time) {
+			trigger.type = (event.channel == 2)
+				? forgerib::kTriggerMain
+				: forgerib::kTriggerVme;
 			trigger.time = event.time;
 			trigger.external_time =
 				((long long)(external_time->high) << 32)

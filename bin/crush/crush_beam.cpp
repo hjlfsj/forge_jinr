@@ -15,22 +15,11 @@ namespace {
 
 constexpr int kBeamCrusherNum = 1;
 constexpr int kBeamModules[kBeamCrusherNum] = {0};
-constexpr int kBeamRates[kBeamCrusherNum] = {250};
+constexpr int kBeamRates[kBeamCrusherNum] = {500};
 
 bool MapBeamEvent(const forgerib::DecodeEvent &decode, forgerib::RawBeamEvent &beam) {
-	switch (decode.channel) {
-	case 0:
-		beam.type = forgerib::kBeamT1;
-		break;
-	case 1:
-		beam.type = forgerib::kBeamT2;
-		break;
-	case 2:
-		beam.type = forgerib::kBeamSi;
-		break;
-	default:
-		return false;
-	}
+	if (decode.channel != 15) return false;
+	beam.type = forgerib::kBeamT1;
 	beam.energy = decode.energy;
 	beam.time = decode.time;
 	beam.cv = decode.cfd_valid;

@@ -112,34 +112,12 @@ void UpdateTriggerEvent(
 }
 
 int Coke(
-	const char *grain_path,
-	const char *vme_trigger_path,
 	const char *input_path,
 	const char *full_output_path,
 	const char *t1_output_path,
 	const double window,
 	bool report = false
 ) {
-	std::map<long long, long long> entry_map;
-	if (ReadAlignEvents(
-		grain_path,
-		entry_map,
-		true
-	)) {
-		std::cerr << "Error: Read sift events failed.\n";
-		return -1;
-	}
-
-	std::set<long long> vme_valid;
-	if (ReadVmeValid(
-		vme_trigger_path,
-		vme_valid,
-		true
-	)) {
-		std::cerr << "Error: Read VME T1 trigger failed.\n";
-		return -2;
-	}
-
 	TFile ipf(input_path, "read");
 	TTree *ipt = (TTree*)ipf.Get("tree");
 	if (!ipt) {
@@ -225,7 +203,7 @@ int Coke(
 				trigger = slots[fill%kSlotNum];
 				opf.cd();
 				opt.Fill();
-				if (vme_valid.count(trigger.vme_entry)) {
+				if (trigger.flag & (1 << kTriggerVme)) {
 					t1_opf.cd();
 					t1_opt.Fill();
 				}
@@ -233,18 +211,16 @@ int Coke(
 			}
 			tofill_entry = min_time_entry - kSlotNum+1;
 		}
-		long long vme_entry = -1;
-		if (raw.type == kTriggerVme) {
-			auto found = entry_map.find(entry);
-			if (found != entry_map.end()) {
-				vme_entry = found->second;
-			}
-		}
-		UpdateTriggerEvent(raw, slots[min_time_entry%kSlotNum], vme_entry);
+		UpdateTriggerEvent(raw, slots[min_time_entry%kSlotNum]);
 	}
 	for (size_t fill = tofill_entry; fill < triggers.size(); ++fill) {
 		trigger = slots[fill%kSlotNum];
+		opf.cd();
 		opt.Fill();
+		if (trigger.flag & (1 << kTriggerVme)) {
+			t1_opf.cd();
+			t1_opt.Fill();
+		}
 	}
 	if (report) printf("\b\b\b\b100%%\n");
 
@@ -294,10 +270,7 @@ int main(int argc, char **argv) {
 		parse_result.count("help")
 		|| (
 			!parse_result.count("run")
-			&& !(
-				parse_result.count("xia-run")
-				&& parse_result.count("vme-run")
-			)
+			&& !parse_result.count("xia-run")
 		)
 	) {
 		std::cout << options.help() << "\n";
@@ -307,31 +280,17 @@ int main(int argc, char **argv) {
 	const int xia_run = parse_result.count("xia-run")
 		? parse_result["xia-run"].as<int>()
 		: parse_result["run"].as<int>();
-	const int vme_run = parse_result.count("vme-run")
-		? parse_result["vme-run"].as<int>()
-		: parse_result["run"].as<int>();
 	const std::string config_path = parse_result["config"].as<std::string>();
 
 	forgerib::AppConfig config;
 	if (forgerib::LoadConfig(config_path, config)) return -1;
 
-	const std::string grain_dir = JoinPath(config.workspace, config.paths.grain);
 	const std::string grit_dir = JoinPath(config.workspace, config.paths.grit);
 	const std::string output_dir = JoinPath(config.workspace, config.paths.ingot);
-	TString grain_path = TString::Format(
-		"%s/grain_%04d.root",
-		grain_dir.c_str(),
-		xia_run
-	);
 	TString trigger_path = TString::Format(
 		"%s/trigger_%04d.root",
 		grit_dir.c_str(),
 		xia_run
-	);
-	TString vme_trigger_path = TString::Format(
-		"%s/trigger_vme_t1_%04d.root",
-		grit_dir.c_str(),
-		vme_run
 	);
 	TString full_output_path = TString::Format(
 		"%s/trigger_%04d.root",
@@ -344,8 +303,6 @@ int main(int argc, char **argv) {
 		xia_run
 	);
 	return Coke(
-		grain_path.Data(),
-		vme_trigger_path.Data(),
 		trigger_path.Data(),
 		full_output_path.Data(),
 		t1_output_path.Data(),

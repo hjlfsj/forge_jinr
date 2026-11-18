@@ -13,31 +13,25 @@
 
 namespace {
 
-constexpr int kT0d1CrusherNum = 4;
-constexpr int kT0d1Modules[kT0d1CrusherNum] = {4, 5, 6, 7};
-constexpr int kT0d1Rates[kT0d1CrusherNum] = {100, 100, 100, 250};
+constexpr int kT0d1CrusherNum = 3;
+constexpr int kT0d1Modules[kT0d1CrusherNum] = {0, 1, 2};
+constexpr int kT0d1Rates[kT0d1CrusherNum] = {500, 500, 100};
 
 bool MapT0d1Event(const forgerib::DecodeEvent &decode, forgerib::RawDssdEvent &dssd) {
 	switch (decode.module) {
-	case 4:
-		if (decode.channel == 15) return false;
-		[[fallthrough]];
-	case 5:
-		dssd.side = forgerib::kDssdSideFront;
-		dssd.strip = decode.channel + (decode.module - 4) * 16;
-		break;
-	case 6:
-		if (decode.channel == 1) {
-			dssd.side = forgerib::kDssdSideFront;
-			dssd.strip = 15;
-		} else {
-			dssd.side = forgerib::kDssdSideBack;
-			dssd.strip = decode.channel;
-		}
-		break;
-	case 7:
+	case 0:
+		if (decode.channel != 0) return false;
 		dssd.side = forgerib::kDssdSideBack;
-		dssd.strip = decode.channel + 16;
+		dssd.strip = 15;
+		break;
+	case 1:
+		dssd.side = forgerib::kDssdSideFront;
+		dssd.strip = decode.channel;
+		break;
+	case 2:
+		if (decode.channel == 15) return false;
+		dssd.side = forgerib::kDssdSideBack;
+		dssd.strip = decode.channel;
 		break;
 	default:
 		return false;
@@ -67,7 +61,7 @@ int CrushT0d1(
 	}
 	std::vector<int> module(kT0d1Modules, kT0d1Modules + kT0d1CrusherNum);
 	std::vector<int> rate(kT0d1Rates, kT0d1Rates + kT0d1CrusherNum);
-	forgerib::Crusher crusher(kT0d1CrusherNum, run, 1, module, rate, raw_path, raw_prefix);
+	forgerib::Crusher crusher(kT0d1CrusherNum, run, 0, module, rate, raw_path, raw_prefix);
 	for (
 		forgerib::DecodeEvent *event = crusher.GetEvent(report);
 		event;
@@ -121,8 +115,8 @@ int main(int argc, char **argv) {
 		config.paths.grit
 	);
 	return CrushT0d1(
-		config.paths.raw_xia1.c_str(),
-		config.prefix.raw_xia1.c_str(),
+		config.paths.raw_xia0.c_str(),
+		config.prefix.raw_xia0.c_str(),
 		output_dir.c_str(),
 		run,
 		true

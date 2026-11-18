@@ -23,6 +23,7 @@
 #include "include/smelt/smelt_ssd.h"
 #include "include/smelt/smelt_t0csi.h"
 #include "include/smelt/smelt_t0csi_bloom.h"
+#include "include/smelt/smelt_gagg.h"
 #include "include/smelt/smelt_t0d1.h"
 #include "include/smelt/smelt_t0d2.h"
 #include "include/smelt/smelt_t0d3.h"
@@ -200,7 +201,7 @@ int main(int argc, char **argv) {
 		)
 		(
 			"detectors",
-			"Detector list: ppac, vppac, t0d1, t0d2, t0d3, t0d4, t0s, t0s_trace, t1su, t1sd, t0csi, t0csi_trace, beam, t1du, t1dd, t1csiu, t1csid, tafd, tafcsi",
+			"Detector list: ppac, vppac, t0d1, t0d2, t0d3, t0d4, t0s, t0s_trace, t1su, t1sd, t0csi, t0csi_trace, beam, gagg, t1du, t1dd, t1csiu, t1csid, tafd, tafcsi",
 			cxxopts::value<std::vector<std::string>>(),
 			"detector"
 		);
@@ -365,6 +366,14 @@ int main(int argc, char **argv) {
 				triggers,
 				GritInputPath(grit_dir, "beam", xia_run).Data(),
 				IngotOutputPath(ingot_dir, "beam", trigger_type, xia_run).Data(),
+				1000.0,
+				true
+			);
+		} else if (detector == "gagg") {
+			result = forgerib::SmeltGagg(
+				triggers,
+				GritInputPath(grit_dir, "gagg", xia_run).Data(),
+				IngotOutputPath(ingot_dir, "gagg", trigger_type, xia_run).Data(),
 				1000.0,
 				true
 			);
