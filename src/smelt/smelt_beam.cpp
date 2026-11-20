@@ -19,7 +19,10 @@ constexpr size_t kSlotNum = 1000;
 
 void ResetBeamEvent(BeamEvent &beam) {
 	beam.flag = 0;
-	beam.valid = false;
+	for (int i = 0; i < 8; ++i) {
+		beam.valid[i] = false;
+		beam.time[i] = 0.0;
+	}
 	beam.tof = 0.0;
 }
 
@@ -27,12 +30,16 @@ void UpdateBeamEvent(
 	const RawBeamEvent &raw,
 	BeamEvent &beam
 ) {
-	if (raw.type < 0 || raw.type > 2) return;
-	if ((beam.flag & (1 << raw.type)) == 0) {
-		beam.flag |= 1 << raw.type;
-		if (raw.type == 0) beam.tof -= raw.time;
-		else if (raw.type == 1) beam.tof += raw.time;
-		if ((beam.flag & 0x3) == 0x3) beam.valid = true;
+	if (raw.type < 0 || raw.type >= 8) return;
+	if ((beam.flag & (1ull << raw.type)) == 0) {
+		beam.flag |= 1ull << raw.type;
+		beam.valid[raw.type] = true;
+		beam.time[raw.type] = raw.time;
+	}
+	const unsigned long long kTofMask =
+		(1ull << kBeamTof3_1) | (1ull << kBeamTof5_1);
+	if ((beam.flag & kTofMask) == kTofMask) {
+		beam.tof = beam.time[kBeamTof5_1] - beam.time[kBeamTof3_1];
 	}
 }
 

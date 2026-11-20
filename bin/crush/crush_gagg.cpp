@@ -18,9 +18,18 @@ constexpr int kGaggModules[kGaggCrusherNum] = {7};
 constexpr int kGaggRates[kGaggCrusherNum] = {100};
 
 bool MapGaggEvent(const forgerib::DecodeEvent &decode, forgerib::RawCsiEvent &csi) {
-	if (decode.channel < 2 || decode.channel > 15) return false;
-	if (decode.channel == 6) return false;
-	csi.index = 15 - decode.channel;
+	if (decode.channel == 0) {
+		csi.index = 13;
+	} else if (decode.channel == 1) {
+		csi.index = 14;
+	} else if (decode.channel == 6) {
+		csi.index = 15;
+	} else if (decode.channel >= 2 && decode.channel <= 15) {
+		csi.index = 15 - decode.channel;
+		if (decode.channel < 6) csi.index -= 1;
+	} else {
+		return false;
+	}
 	csi.energy = decode.energy;
 	csi.time = decode.time;
 	csi.cv = decode.cfd_valid;

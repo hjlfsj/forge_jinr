@@ -14,6 +14,7 @@
 #include "include/util.h"
 #include "include/event/ingot/beam_event.h"
 #include "include/event/ingot/ppac_event.h"
+#include "include/event/ore/raw_beam_event.h"
 
 namespace {
 
@@ -156,7 +157,9 @@ int main(int argc, char **argv) {
 		}
 		tree->GetEntry(entry);
 		beam_tree->GetEntry(entry);
-		if (!beam.valid) continue;
+		const unsigned long long kTofMask =
+			(1ull << forgerib::kBeamTof3_1) | (1ull << forgerib::kBeamTof5_1);
+		if ((beam.flag & kTofMask) != kTofMask) continue;
 		if (beam.tof < kTofMin || beam.tof > kTofMax) continue;
 
 		double x[3] = {0.0, 0.0, 0.0};

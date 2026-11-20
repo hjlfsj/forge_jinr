@@ -18,8 +18,8 @@ constexpr int kBeamModules[kBeamCrusherNum] = {0};
 constexpr int kBeamRates[kBeamCrusherNum] = {500};
 
 bool MapBeamEvent(const forgerib::DecodeEvent &decode, forgerib::RawBeamEvent &beam) {
-	if (decode.channel != 15) return false;
-	beam.type = forgerib::kBeamT1;
+	if (decode.channel < 8 || decode.channel > 15) return false;
+	beam.type = decode.channel - 8;
 	beam.energy = decode.energy;
 	beam.time = decode.time;
 	beam.cv = decode.cfd_valid;

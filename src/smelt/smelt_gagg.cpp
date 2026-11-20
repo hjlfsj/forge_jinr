@@ -16,7 +16,7 @@ namespace forgerib {
 namespace {
 
 constexpr size_t kSlotNum = 1000;
-constexpr int kGaggNum = 14;
+constexpr int kGaggNum = 16;
 
 void ResetGaggEvent(CsiEvent<kGaggNum> &csi) {
 	csi.flag = 0;

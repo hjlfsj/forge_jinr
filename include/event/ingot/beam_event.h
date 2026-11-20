@@ -7,8 +7,9 @@
 namespace forgerib {
 
 struct BeamEvent {
-	int flag;
-	bool valid;
+	unsigned long long flag;
+	bool valid[8];
+	double time[8];
 	double tof;
 };
 

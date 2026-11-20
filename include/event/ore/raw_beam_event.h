@@ -7,9 +7,14 @@
 
 namespace forgerib {
 
-constexpr int kBeamT1 = 0;
-constexpr int kBeamT2 = 1;
-constexpr int kBeamSi = 2;
+constexpr int kBeamTof3_1 = 0;
+constexpr int kBeamTof3_2 = 1;
+constexpr int kBeamTof3_3 = 2;
+constexpr int kBeamTof3_4 = 3;
+constexpr int kBeamTof5_1 = 4;
+constexpr int kBeamTof5_2 = 5;
+constexpr int kBeamTof5_3 = 6;
+constexpr int kBeamTof5_4 = 7;
 
 struct RawBeamEvent {
 	int type;

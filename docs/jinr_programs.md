@@ -20,7 +20,7 @@ VME 相关程序、sift 接口以及其余探测器程序均原样保留，未�
 | jinr_t1_trigger | t1 trigger（slot 内出现 module 0 ch3 vme_trigger） | coke | `ingot/trigger_t1_%04d.root` |
 | jinr_t0d1 | T0D1 DSSD（module 0/1/2） | crush → smelt | `grit/t0d1_%04d.root` → `ingot/t0d1_%04d.root` |
 | jinr_t0d2 | T0D2 DSSD（module 3/4/5/6/8） | crush → smelt | `grit/t0d2_%04d.root` → `ingot/t0d2_%04d.root` |
-| jinr_beam | TOF（module 0 ch15） | crush → smelt | `grit/beam_%04d.root` → `ingot/beam_%04d.root` |
+| jinr_beam | TOF（module 0 ch8–15，8 路） | crush → smelt | `grit/beam_%04d.root` → `ingot/beam_%04d.root` |
 | jinr_gagg | GAGG（module 7） | crush → smelt | `grit/gagg_%04d.root` → `ingot/gagg_%04d.root` |
 
 > 说明：探测器概念名使用 `jinr_` 前缀，实际 ROOT 文件名沿用原有短名（`t0d1`、`t0d2`、`beam`、`gagg`、`trigger`），未额外加前缀。
@@ -91,10 +91,10 @@ crush_gagg    <run> [-c config.toml]
 | 程序 | module | 采样率（MHz） | 映射要点 |
 |------|--------|---------------|----------|
 | crush_trigger | 0 | 500 | ch2=Main trigger，ch3=Vme trigger，带 external_time |
-| crush_beam | 0 | 500 | ch15=TOF |
+| crush_beam | 0 | 500 | ch8–15=8 路 TOF |
 | crush_t0d1 | 0, 1, 2 | 500, 500, 100 | m0-ch0=b15；m1=f0–15；m2=b0–14 |
 | crush_t0d2 | 3, 4, 5, 6, 8 | 100 | 含 f22/b1/b23/b31 归属与 error 通道修补 |
-| crush_gagg | 7 | 100 | index=15−ch，跳过 ch6（apd10 不存在），编号 0–13 |
+| crush_gagg | 7 | 100 | 16 路：13 路 APD + 3 路 SIPM（gagg 13/14/15） |
 
 ## 5. coke 阶段（trigger 锻造）
 
@@ -150,3 +150,52 @@ coke --run 123
 # 3) 探测器事件重构（smelt，main 版本）
 smelt --run 123 t0d1 t0d2 beam gagg
 ```
+
+## 8. 通道 → 数组下标映射
+
+### 8.1 Beam / TOF（module 0，sid 2）
+
+TOF 模块共记录 8 路时间，对应 XIA 通道 ch8~ch15。`crush_beam` 使用 `type = channel - 8`，
+`BeamEvent` 的 `valid[8]` / `time[8]` 数组下标即 `type`。
+
+| XIA ch | 探测器 | type / 数组下标 | 常量 |
+|--------|--------|----------------|------|
+| 8  | tof3-1 | 0 | kBeamTof3_1 |
+| 9  | tof3-2 | 1 | kBeamTof3_2 |
+| 10 | tof3-3 | 2 | kBeamTof3_3 |
+| 11 | tof3-4 | 3 | kBeamTof3_4 |
+| 12 | tof5-1 | 4 | kBeamTof5_1 |
+| 13 | tof5-2 | 5 | kBeamTof5_2 |
+| 14 | tof5-3 | 6 | kBeamTof5_3 |
+| 15 | tof5-4 | 7 | kBeamTof5_4 |
+
+TOF 只计算一组：`tof = tof5_1 - tof3_1 = time[kBeamTof5_1] - time[kBeamTof3_1] = time[4] - time[0]`。
+当 tof3_1（bit0）与 tof5_1（bit4）同时有效时计算，否则不更新。
+
+### 8.2 GAGG（module 7，sid 9）
+
+GAGG 共 16 路：13 路普通 APD + 3 路 SIPM。APD 编号为 apd1~apd9、apd11~apd14
+（无 apd10，空洞已闭合）。sipm1/2/3 作为 gagg 的 13/14/15 路。
+
+| XIA ch | 探测器 | gagg index |
+|--------|--------|-----------|
+| 15 | apd1  | 0  |
+| 14 | apd2  | 1  |
+| 13 | apd3  | 2  |
+| 12 | apd4  | 3  |
+| 11 | apd5  | 4  |
+| 10 | apd6  | 5  |
+| 9  | apd7  | 6  |
+| 8  | apd8  | 7  |
+| 7  | apd9  | 8  |
+| 5  | apd11 | 9  |
+| 4  | apd12 | 10 |
+| 3  | apd13 | 11 |
+| 2  | apd14 | 12 |
+| 0  | sipm1 | 13 |
+| 1  | sipm2 | 14 |
+| 6  | sipm3 | 15 |
+
+映射公式（`crush_gagg`）：
+- ch0 -> 13，ch1 -> 14，ch6 -> 15（sipm）
+- ch2~ch15（除 ch6）：`index = 15 - channel`，若 `channel < 6` 再减 1（闭合 apd10 空洞）

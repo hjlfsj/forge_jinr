@@ -3,23 +3,22 @@ sid	2	3	4	5	6	7	8	9	10
 type	500-14	500-14	100-14	100-14	100-14	100-14	100-14	100-14	100-14
 number	1266	1226	1311	1313	1129	1286	1120	1115	1126
 detector	TOF	T0D1-F	T0D1-B	T0D2-F0	T0D2-F1	Free	T0D2-B0	GAGG	T0D2-B1
-ch0	t0d1-b15	t0d1-f0	t0d1-b0	t0d2-f0	t0d2-f16	t0d2-f22	t0d2-b0		t0d2-b16
-ch1		t0d1-f1	t0d1-b1	t0d2-f1	t0d2-f17	t0d2-b1	error		t0d2-b17
+ch0	t0d1-b15	t0d1-f0	t0d1-b0	t0d2-f0	t0d2-f16	t0d2-f22	t0d2-b0	sipm1	t0d2-b16
+ch1		t0d1-f1	t0d1-b1	t0d2-f1	t0d2-f17	t0d2-b1	error	sipm2	t0d2-b17
 ch2	Main_trigger	t0d1-f2	t0d1-b2	t0d2-f2	t0d2-f18	t0d2-b23	t0d2-b2	apd14	t0d2-b18
-ch3		t0d1-f3	t0d1-b3	t0d2-f3	t0d2-f19	t0d2-b31	t0d2-b3	apd13	t0d2-b19
+ch3	VME_trigger	t0d1-f3	t0d1-b3	t0d2-f3	t0d2-f19	t0d2-b31	t0d2-b3	apd13	t0d2-b19
 ch4		t0d1-f4	t0d1-b4	t0d2-f4	t0d2-f20		t0d2-b4	apd12	t0d2-b20
 ch5		t0d1-f5	t0d1-b5	t0d2-f5	t0d2-f21		t0d2-b5	apd11	t0d2-b21
-ch6		t0d1-f6	t0d1-b6	t0d2-f6	error		t0d2-b6		t0d2-b22
+ch6		t0d1-f6	t0d1-b6	t0d2-f6	error		t0d2-b6	sipm3	t0d2-b22
 ch7		t0d1-f7	t0d1-b7	t0d2-f7	t0d2-f23		t0d2-b7	apd9	error
-ch8		t0d1-f8	t0d1-b8	t0d2-f8	t0d2-f24		t0d2-b8	apd8	t0d2-b24
-ch9		t0d1-f9	t0d1-b9	t0d2-f9	t0d2-f25		t0d2-b9	apd7	t0d2-b25
-ch10		t0d1-f10	t0d1-b10	t0d2-f10	t0d2-f26		t0d2-b10	apd6	t0d2-b26
-ch11		t0d1-f11	t0d1-b11	t0d2-f11	t0d2-f27		t0d2-b11	apd5	t0d2-b27
-ch12		t0d1-f12	t0d1-b12	t0d2-f12	t0d2-f28		t0d2-b12	apd4	t0d2-b28
-ch13		t0d1-f13	t0d1-b13	t0d2-f13	t0d2-f29		t0d2-b13	apd3	t0d2-b29
-ch14		t0d1-f14	t0d1-b14	t0d2-f14	t0d2-f30		t0d2-b14	apd2	t0d2-b30
-ch15	tof	tod1-f15	error	t0d2-f15	t0d2-f31		t0d2-b15	apd1	error
-
+ch8	tof3-1	t0d1-f8	t0d1-b8	t0d2-f8	t0d2-f24		t0d2-b8	apd8	t0d2-b24
+ch9	tof3-2	t0d1-f9	t0d1-b9	t0d2-f9	t0d2-f25		t0d2-b9	apd7	t0d2-b25
+ch10	tof3-3	t0d1-f10	t0d1-b10	t0d2-f10	t0d2-f26		t0d2-b10	apd6	t0d2-b26
+ch11	tof3-4	t0d1-f11	t0d1-b11	t0d2-f11	t0d2-f27		t0d2-b11	apd5	t0d2-b27
+ch12	tof5-1	t0d1-f12	t0d1-b12	t0d2-f12	t0d2-f28		t0d2-b12	apd4	t0d2-b28
+ch13	tof5-2	t0d1-f13	t0d1-b13	t0d2-f13	t0d2-f29		t0d2-b13	apd3	t0d2-b29
+ch14	tof5-3	t0d1-f14	t0d1-b14	t0d2-f14	t0d2-f30		t0d2-b14	apd2	t0d2-b30
+ch15	tof5-4	tod1-f15	error	t0d2-f15	t0d2-f31		t0d2-b15	apd1	error
 
 
 
@@ -72,3 +71,31 @@ ch15	tof	tod1-f15	error	t0d2-f15	t0d2-f31		t0d2-b15	apd1	error
 1. 直接改旧的 crush_t0d1/t0d2/beam/trigger 的映射
 2. 对严格按照mapping即可
 3. 结构和之前保持一致
+
+
+
+更新！目前我们的mapping更新了 main_trigger, vme_trigger,以及beam 中的tof的位置，以及几块sipm的位置
+
+进行以下更新：
+
+- crush trigger同时得到vme的trigger
+- crush beam 得到八路tof的信息
+- crush gagg 加入新增的3块sipm，将其视为gagg的 13，14，15路
+- coke 时得到vme trigger，即之前的t1_trigger
+- smelt 时，新增tof,以及新增的gagg的信息
+
+提出你的理解，疑问和建议
+
+疑问：
+
+1. 只记录八路的时间，tof只计算一组：tof = tof5_1 - tof3_1
+2. 沿用旧字段
+3. 闭合空洞，在说明文档中说明mapping
+4. 最终总和为16路，其中13路为普通gagg，3路为带有sipm的gagg
+
+建议：
+
+1. 保持一致
+2.ok
+3. ok
+4. ok

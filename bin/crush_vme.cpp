@@ -239,7 +239,10 @@ void ResetCsiEvent(CsiEvent<N> &event) {
 
 void ResetBeamEvent(BeamEvent &event) {
 	event.flag = 0;
-	event.valid = false;
+	for (int i = 0; i < 8; ++i) {
+		event.valid[i] = false;
+		event.time[i] = 0.0;
+	}
 	event.tof = 0.0;
 }
 
@@ -448,19 +451,18 @@ void FillBeamEvent(const VmeBranches &input, BeamEvent &event) {
 	ResetBeamEvent(event);
 	const int t1_channel = 97;
 	const int t2_channel = 98;
-	double t1 = 0.0;
-	double t2 = 0.0;
 	if (input.gmulti[1][t1_channel] > 0) {
 		event.flag |= 1 << 0;
-		t1 = GdcTime(input, 1, t1_channel);
+		event.valid[0] = true;
+		event.time[0] = GdcTime(input, 1, t1_channel);
 	}
 	if (input.gmulti[1][t2_channel] > 0) {
 		event.flag |= 1 << 1;
-		t2 = GdcTime(input, 1, t2_channel);
+		event.valid[1] = true;
+		event.time[1] = GdcTime(input, 1, t2_channel);
 	}
 	if ((event.flag & 0x3) == 0x3) {
-		event.valid = true;
-		event.tof = t2 - t1;
+		event.tof = event.time[1] - event.time[0];
 	}
 }
 
