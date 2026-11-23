@@ -58,6 +58,7 @@ int ReadXiaTimes(
 	return 0;
 }
 
+
 int ReadVmeTimes(
 	const char *path,
 	std::vector<double> &times,
@@ -65,18 +66,23 @@ int ReadVmeTimes(
 	bool report = false
 ) {
 	TFile ipf(path, "read");
+	if (!ipf.IsOpen()) {
+		std::cerr << "Error: Cannot open " << path << ".\n";
+		return -1;
+	}
 	TTree *ipt = static_cast<TTree*>(ipf.Get("tree"));
 	if (!ipt) {
 		std::cerr << "Error: get tree from " << path << " failed.\n";
 		return -1;
 	}
-	unsigned long long sdc[32];
-	ipt->SetBranchAddress("sdc", sdc);
+
+	bool valid = false;
+	long long time = 0;
+	ipt->SetBranchAddress("valid", &valid);
+	ipt->SetBranchAddress("time", &time);
 
 	times.clear();
 	entries.clear();
-	long long bit_flip_offset = 0;
-	long long last_timestamp = 0;
 	long long total = ipt->GetEntries();
 	long long last_percentage = 0;
 	if (report) {
@@ -91,15 +97,9 @@ int ReadVmeTimes(
 		}
 
 		ipt->GetEntry(entry);
-		if (sdc[1] == 0) continue;
-		long long timestamp = (sdc[1] + bit_flip_offset) * 200;
-		if (timestamp < last_timestamp) {
-			bit_flip_offset += 1ll << 32;
-			timestamp += (1ll << 32) * 200;
-		}
-		last_timestamp = timestamp;
+		if (!valid) continue;
 
-		times.push_back(double(timestamp));
+		times.push_back(double(time*1000.0));
 		entries.push_back(entry);
 	}
 	if (report) printf("\b\b\b\b100%%\n");
@@ -155,9 +155,7 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 	const std::string grit_dir = JoinPath(config.workspace, config.paths.grit);
-	const std::string vme_dir = JoinPath(config.workspace, config.paths.raw_vme);
 	const std::string grain_dir = JoinPath(config.workspace, config.paths.grain);
-	const std::string vme_prefix = config.prefix.raw_vme;
 
 	std::vector<double> xia_times;
 	std::vector<double> xia_external_times;
@@ -178,16 +176,16 @@ int main(int argc, char **argv) {
 		return -2;
 	}
 
+	// VME 输入改为 crush_vme 生成的 trigger_vme_XXXX.root（位于 grit_dir）
 	std::vector<double> vme_times;
 	std::vector<long long> vme_entries;
 	TString vme_filename = TString::Format(
-		"%s/%s%04d.root",
-		vme_dir.c_str(),
-		vme_prefix.c_str(),
+		"%s/trigger_vme_%04d.root",
+		grit_dir.c_str(),
 		vme_run
 	);
 	if (ReadVmeTimes(
-		vme_filename,
+		vme_filename.Data(),
 		vme_times,
 		vme_entries,
 		true
@@ -208,8 +206,8 @@ int main(int argc, char **argv) {
 		vme_times,
 		vme_entries,
 		output_file,
-		10000, // window 50*200ns
-		100,    //lookhead 10,100
+		20000, // window 20*1000ns
+		10,    //lookhead 10,100
 		1000,
 		1000,
 		true

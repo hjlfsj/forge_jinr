@@ -17,6 +17,7 @@ target_link_libraries(
 	ROOT::RIO
 	ROOT::Tree
 	ROOT::Core
+    ROOT::TreePlayer
 )
 
 add_executable(calib_vme_alpha calib_vme_alpha.cpp)

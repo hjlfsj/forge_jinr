@@ -3,7 +3,7 @@
 
 # workspace = "/data/disk1/ribll2026_www_data"  # workspace for output files
 
-workspace = "/home/daqtest/test_rootfile"  # workspace for test
+workspace = "/home/jinrdaq/root_data/exp"  # workspace for test
 # workspace = "/data/disk1/delta"
 trigger = "main"
 jump_run = [63, 81, 112]
@@ -16,12 +16,12 @@ jump_run = [63, 81, 112]
 # raw_xia2 = "/data/disk0/raw/xia2"
 
 # for test
-raw_xia0 = "/home/daqtest/test"
+raw_xia0 = "/home/jinrdaq/raw_data/exp/raw_file"
    
 
 
 
-raw_vme = "/data/disk4/vme/root_file"
+raw_vme = "/home/jinrdaq/root_data/exp/VME/root"
 ore = "ore"  # vme decode files 
 grit = "grit"  # XIA decode files 
 grain = "grain"  # time sift 
