@@ -29,6 +29,11 @@ int Sift(
 ) {
 	// output file
 	TFile opf(output_path, "recreate");
+	if (!opf.IsOpen()) {
+		std::cerr << "Error: Cannot create output file " << output_path
+			<< ". Check permissions/disk.\n";
+		return -1;
+	}
 	// offset-group graph in first, second. third match
 	TGraph offset_vs_group[3];
 	// window-group graph, in first, second, third match
@@ -38,41 +43,69 @@ int Sift(
 	AlignEvent event;
 	SetupOutput(&opt, event);
 
+	// 基本尺寸检查
+	if (xia_times.size() < 4 || vme_times.size() < 4) {
+		std::cerr << "Error: Not enough events. XIA=" << xia_times.size()
+			<< ", VME=" << vme_times.size() << ".\n";
+		return -1;
+	}
+	if (xia_entries.size() != xia_times.size()
+		|| vme_entries.size() != vme_times.size()) {
+		std::cerr << "Error: times/entries size mismatch.\n";
+		return -1;
+	}
+
 	std::vector<double> vme_dt;
-	for (size_t i = 1; i < vme_window; ++i) {
+	for (size_t i = 1; i < vme_times.size(); ++i) {
 		vme_dt.push_back(vme_times[i] - vme_times[i-1]);
 	}
-    size_t anchor_xia = -1;
-	size_t anchor_vme = -1;
+
+	// ------------------------------------------------------------------
+	// 首次 anchor：要求 4 个连续事件（3 个连续 dt 判据）
+	// 搜索窗口：XIA 到 size/2，VME 到 size/2
+	// ------------------------------------------------------------------
+	size_t anchor_xia = static_cast<size_t>(-1);
+	size_t anchor_vme = static_cast<size_t>(-1);
 	bool found = false;
-	for (anchor_xia = 2; anchor_xia < xia_window*100; ++anchor_xia) {
-		double xia_dt0 = xia_times[anchor_xia-1] - xia_times[anchor_xia-2];
-		double xia_dt1 = xia_times[anchor_xia] - xia_times[anchor_xia-1];
-		for (anchor_vme = 0; anchor_vme < vme_window*100-2; ++anchor_vme) {
-			if (
-				fabs(vme_dt[anchor_vme]-xia_dt0) <  window
-				&& fabs(vme_dt[anchor_vme+1]-xia_dt1) < window
-			) {
+
+	const size_t xia_search_end = std::min(xia_times.size() / 2, xia_times.size());
+	const size_t vme_search_end = std::min(vme_times.size() , vme_times.size());
+
+	// anchor_xia 需要至少 3 个前置点，anchor_vme 同理
+	for (anchor_xia = 3; anchor_xia < xia_search_end; ++anchor_xia) {
+		double xia_dt0 = xia_times[anchor_xia-2] - xia_times[anchor_xia-3];
+		double xia_dt1 = xia_times[anchor_xia-1] - xia_times[anchor_xia-2];
+		double xia_dt2 = xia_times[anchor_xia]   - xia_times[anchor_xia-1];
+		for (anchor_vme = 3; anchor_vme + 2 < vme_search_end; ++anchor_vme) {
+			// vme_dt[k] = vme_times[k+1] - vme_times[k]
+			// 需要 3 个连续 dt：vme_dt[anchor_vme-3], vme_dt[anchor_vme-2], vme_dt[anchor_vme-1]
+			double vme_dt0 = vme_dt[anchor_vme-3];
+			double vme_dt1 = vme_dt[anchor_vme-2];
+			double vme_dt2 = vme_dt[anchor_vme-1];
+			if (fabs(vme_dt0 - xia_dt0) < window
+				&& fabs(vme_dt1 - xia_dt1) < window
+				&& fabs(vme_dt2 - xia_dt2) < window) {
 				found = true;
-				anchor_vme += 2;
 				break;
 			}
 		}
 		if (found) break;
 	}
 	if (!found) {
-		std::cerr << "Error: Could not find initial anchor in XIA window "
-			<< xia_window << ", VME window " << vme_window << ".\n";
+		std::cerr << "Error: Could not find initial anchor (4 consecutive events) "
+			<< "in XIA window [3," << xia_search_end << "), "
+			<< "VME window [3," << vme_search_end << ").\n";
 		return -1;
 	}
 
 	if (report) {
-		std::cout << "Anchor at XIA entry " << anchor_xia << ", VME entry " << anchor_vme << "\n";
+		std::cout << "Anchor at XIA entry " << anchor_xia
+			<< ", VME entry " << anchor_vme << " (4-event anchor)\n";
 	}
 
 	size_t align_events = 0;
-	// fill first three events
-	for (int i = 2; i >= 0; --i) {
+	// 填首个 anchor 对应的 4 个事件（anchor_xia/anchor_vme 指向第 4 个点）
+	for (int i = 3; i >= 0; --i) {
 		event.vme_entry = vme_entries[anchor_vme-i];
 		event.vme_time = vme_times[anchor_vme-i];
 		event.xia_entry = xia_entries[anchor_xia-i];
@@ -95,9 +128,11 @@ int Sift(
 			fflush(stdout);
 		}
 		bool match = false;
-		for (size_t i = anchor_xia+1; i <= anchor_xia+range; ++i) {
+		const size_t xia_lim = std::min(anchor_xia + range, xia_times.size() - 1);
+		const size_t vme_lim = std::min(anchor_vme + range, vme_times.size() - 1);
+		for (size_t i = anchor_xia+1; i <= xia_lim; ++i) {
 			double xia_dt = xia_times[i] - xia_times[anchor_xia];
-			for (size_t j = anchor_vme+1; j <= anchor_vme+range; ++j) {
+			for (size_t j = anchor_vme+1; j <= vme_lim; ++j) {
 				double vme_dt = vme_times[j] - vme_times[anchor_vme];
 				if (fabs(xia_dt - vme_dt) < window) {
 					event.vme_entry = vme_entries[j];
@@ -123,20 +158,23 @@ int Sift(
 		{
 			std::cout << "Matching stalled at XIA idx " << anchor_xia << ". Re-anchoring..." << std::endl;
 			size_t ref_xia = anchor_xia + 1;
-	        size_t ref_vme = anchor_vme + 1;
+			size_t ref_vme = anchor_vme + 1;
 			found = false;
-			for (anchor_xia = ref_xia+2; anchor_xia < xia_window+ref_xia; ++anchor_xia)
+			// 后续 re-anchor 仍为 3 个连续事件（2 个 dt 判据）
+			const size_t xia_re_end = std::min(xia_window + ref_xia, xia_times.size());
+			const size_t vme_re_end = std::min(vme_window + ref_vme, vme_times.size());
+			for (anchor_xia = ref_xia + 2; anchor_xia < xia_re_end; ++anchor_xia)
 			{
 				double xia_dt0 = xia_times[anchor_xia-1] - xia_times[anchor_xia-2];
 				double xia_dt1 = xia_times[anchor_xia] - xia_times[anchor_xia-1];
-				for (anchor_vme = ref_vme; anchor_vme < vme_window+ref_vme-2; ++anchor_vme)
+				for (anchor_vme = ref_vme; anchor_vme + 1 < vme_re_end; ++anchor_vme)
 				{
 					double vme_dt0 = vme_times[anchor_vme+1] - vme_times[anchor_vme];
 					double vme_dt1 = vme_times[anchor_vme+2] - vme_times[anchor_vme+1];
-					if (fabs(vme_dt0-xia_dt0) <  window && fabs(vme_dt1-xia_dt1) < window)
+					if (fabs(vme_dt0-xia_dt0) < window && fabs(vme_dt1-xia_dt1) < window)
 					{
 						found = true;
-						anchor_vme += 2;
+						anchor_vme += 2;  // 指向第 3 个点
 						break;
 					}
 				}
@@ -151,25 +189,22 @@ int Sift(
 						opt.Fill();
 						++align_events;
 					}
-				std::cerr << "Find next anchor: " <<".\n";
-				// return -1;
-				// break;
-				std::cout << "Anchor at XIA entry " << anchor_xia << ", VME entry " << anchor_vme << "\n";
-				break;
+					std::cerr << "Find next anchor: " << ".\n";
+					std::cout << "Anchor at XIA entry " << anchor_xia
+						<< ", VME entry " << anchor_vme << "\n";
+					break;
 				}
 			}
 
 			if (!found)
 			{
 				std::cerr << "Could not find anchor in XIA window "
-				<< xia_window << ", VME window " << vme_window << ".\n";
-				// return -1;
-				// break;
-				std::cout << "Anchor at XIA entry " << anchor_xia << ", VME entry " << anchor_vme << "\n";
+					<< xia_window << ", VME window " << vme_window << ".\n";
+				std::cout << "Anchor at XIA entry " << anchor_xia
+					<< ", VME entry " << anchor_vme << "\n";
 				std::cout << "try next window" << std::endl;
 			}
 		}
-
 	}
 	if (report) printf("\b\b\b\b100%%\n");
 
@@ -189,5 +224,4 @@ int Sift(
 	return 0;
 }
 
-
-}
+} // namespace forgerib

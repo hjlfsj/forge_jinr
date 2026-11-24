@@ -206,8 +206,8 @@ int main(int argc, char **argv) {
 		vme_times,
 		vme_entries,
 		output_file,
-		20000, // window 20*1000ns
-		10,    //lookhead 10,100
+		20000, // window 10*1000ns
+		20,    //lookhead 10,100
 		1000,
 		1000,
 		true
