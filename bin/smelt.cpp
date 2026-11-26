@@ -83,19 +83,7 @@ TString IngotTriggeredPath(
 	);
 }
 
-// TString GrainPath(
-// 	const std::string &grain_dir,
-// 	const std::string &trigger_type,
-// 	int run
-// ) {
-// 	return TString::Format(
-// 		"%s/grain_%s%04d.root",
-// 		grain_dir.c_str(),
-// 		TriggerStem(trigger_type).c_str(),
-// 		run
-// 	);
-// }
-
+// 读取 trigger_XXXX.root 里的主触发时间
 int ReadTrigger(
 	const char *path,
 	std::vector<double> &trigger,
@@ -127,7 +115,7 @@ int ReadTrigger(
 			fflush(stdout);
 		}
 		ipt->GetEntry(entry);
-		if (!trigger_event.valid[forgerib::kTriggerMain]) continue;     
+		if (!trigger_event.valid[forgerib::kTriggerMain]) continue;
 		trigger.push_back(trigger_event.time[forgerib::kTriggerMain]);
 		vme_entries.push_back(trigger_event.vme_entry);
 	}
@@ -138,18 +126,46 @@ int ReadTrigger(
 	return 0;
 }
 
-// long long GetXiaTotal(const std::string &ingot_dir, int run) {
-// 	TString filename = TString::Format("%s/trigger_%04d.root", ingot_dir.c_str(), run);
-// 	TFile ipf(filename, "read");
-// 	TTree *ipt = static_cast<TTree*>(ipf.Get("tree"));
-// 	if (!ipt) {
-// 		std::cerr << "Error: Get tree from " << filename << " failed.\n";
-// 		return -1;
-// 	}
-// 	const long long total = ipt->GetEntries();
-// 	ipf.Close();
-// 	return total;
-// }
+// 读取 grain_XXXX.root 的 vme_time（已按 xia_entry 排序，通常单调递增）
+int ReadGrainVmeTimes(
+	const char *path,
+	std::vector<double> &vme_times,
+	bool report = false
+) {
+	TFile ipf(path, "read");
+	TTree *ipt = static_cast<TTree*>(ipf.Get("tree"));
+	if (!ipt) {
+		std::cerr << "Error: Get tree from " << path << " failed.\n";
+		return -1;
+	}
+	double vme_time = 0.0;
+	if (ipt->SetBranchAddress("vme_time", &vme_time) < 0) {
+		std::cerr << "Error: cannot bind vme_time in " << path << ".\n";
+		ipf.Close();
+		return -1;
+	}
+
+	vme_times.clear();
+	long long total = ipt->GetEntries();
+	long long last_percentage = 0;
+	if (report) {
+		printf("Reading grain vme_time   0%%");
+		fflush(stdout);
+	}
+	for (long long entry = 0; entry < total; ++entry) {
+		if (report && total > 0
+			&& entry * 100ll / total > last_percentage) {
+			last_percentage = entry * 100ll / total;
+			printf("\b\b\b\b%3lld%%", last_percentage);
+			fflush(stdout);
+		}
+		ipt->GetEntry(entry);
+		vme_times.push_back(vme_time);
+	}
+	if (report) printf("\b\b\b\b100%%\n");
+	ipf.Close();
+	return 0;
+}
 
 bool NeedsVmeRun(const std::string &detector) {
 	return detector == "t0csi"
@@ -177,7 +193,7 @@ int main(int argc, char **argv) {
 		)
 		(
 			"t,trigger",
-			"Trigger type: main, taf, or t1.",
+			"Trigger type: main or t1.",
 			cxxopts::value<std::string>(),
 			"trigger"
 		)
@@ -272,6 +288,7 @@ int main(int argc, char **argv) {
 	const std::string grain_dir = forgerib::JoinPath(config.workspace, config.paths.grain);
 	const std::string ingot_dir = forgerib::JoinPath(config.workspace, config.paths.ingot);
 
+	// 主触发时间（用于 XIA 探测器）
 	std::vector<double> triggers;
 	std::vector<long long> vme_entries;
 	TString trigger_path = TString::Format(
@@ -284,6 +301,11 @@ int main(int argc, char **argv) {
 		std::cerr << "Error: Read trigger failed.\n";
 		return -1;
 	}
+
+	// VME 时间戳（来自 grain_XXXX.root）以及匹配到的 VME entry
+	std::vector<double> vme_times;
+	std::vector<long long> vme_entries_matched;
+	bool vme_times_loaded = false;
 
 	for (std::string detector : detectors) {
 		if (detector == "t1ud") detector = "t1du";
@@ -414,9 +436,6 @@ int main(int argc, char **argv) {
 				trigger_type,
 				xia_run
 			);
-			// std::cout << bloom_path.Data() << "\n";
-			// std::cout << GritInputPath(grit_dir, "t0csi_trace", xia_run).Data() << "\n";
-			// std::cout << __LINE__ << "\n";
 			result = forgerib::SmeltT0Csi_trace(
 				triggers,
 				GritInputPath(grit_dir, "t0csi_trace", xia_run).Data(),
@@ -424,64 +443,100 @@ int main(int argc, char **argv) {
 				1000.0,
 				true
 			);
-			// std::cout << __LINE__ << "\n";
+		} else if (
+			detector == "t1du"
+			|| detector == "t1dd"
+			|| detector == "t1csiu"
+			|| detector == "t1csid"
+			|| detector == "tafd"
+			|| detector == "tafcsi"
+			|| detector == "vppac"
+		) {
+			// 这些探测器用 vme_entries_matched（从 trigger_vme 按时间匹配得到）
+			if (!vme_times_loaded) {
+				TString grain_path = TString::Format(
+					"%s/grain_%04d.root",
+					grain_dir.c_str(),
+					xia_run
+				);
+				if (ReadGrainVmeTimes(grain_path.Data(), vme_times, true)) {
+					std::cerr << "Error: Read grain vme_time failed.\n";
+					return -1;
+				}
+				TString trigger_vme_path = TString::Format(
+					"%s/trigger_vme_%04d.root",
+					grit_dir.c_str(),
+					vme_run
+				);
+				if (forgerib::MatchVmeEntries(
+						vme_times,
+						trigger_vme_path.Data(),
+						vme_entries_matched,
+						1.0,
+						true)) {
+					std::cerr << "Error: Match VME entries failed.\n";
+					return -1;
+				}
+				vme_times_loaded = true;
+			}
 
-		} else if (detector == "t1du") {
-			result = forgerib::SmeltDetector<forgerib::DssdEvent>(
-				vme_entries,
-				GritVmeInputPath(grit_dir, "t1du", vme_run).Data(),
-				IngotOutputPath(ingot_dir, "t1du", trigger_type, xia_run).Data(),
-				"t1du",
-				true
-			);
-		} else if (detector == "t1dd") {
-			result = forgerib::SmeltDetector<forgerib::DssdEvent>(
-				vme_entries,
-				GritVmeInputPath(grit_dir, "t1dd", vme_run).Data(),
-				IngotOutputPath(ingot_dir, "t1dd", trigger_type, xia_run).Data(),
-				"t1dd",
-				true
-			);
-		} else if (detector == "t1csiu") {
-			result = forgerib::SmeltDetector<forgerib::CsiEvent<4>>(
-				vme_entries,
-				GritVmeInputPath(grit_dir, "t1csiu", vme_run).Data(),
-				IngotOutputPath(ingot_dir, "t1csiu", trigger_type, xia_run).Data(),
-				"t1csiu",
-				true
-			);
-		} else if (detector == "t1csid") {
-			result = forgerib::SmeltDetector<forgerib::CsiEvent<13>>(
-				vme_entries,
-				GritVmeInputPath(grit_dir, "t1csid", vme_run).Data(),
-				IngotOutputPath(ingot_dir, "t1csid", trigger_type, xia_run).Data(),
-				"t1csid",
-				true
-			);
-		} else if (detector == "tafd") {
-			result = forgerib::SmeltDetector<forgerib::TafdEvent>(
-				vme_entries,
-				GritVmeInputPath(grit_dir, "tafd", vme_run).Data(),
-				IngotOutputPath(ingot_dir, "tafd", trigger_type, xia_run).Data(),
-				"tafd",
-				true
-			);
-		} else if (detector == "tafcsi") {
-			result = forgerib::SmeltDetector<forgerib::CsiEvent<12>>(
-				vme_entries,
-				GritVmeInputPath(grit_dir, "tafcsi", vme_run).Data(),
-				IngotOutputPath(ingot_dir, "tafcsi", trigger_type, xia_run).Data(),
-				"tafcsi",
-				true
-			);
-		} else if (detector == "vppac") {
-			result = forgerib::SmeltDetector<forgerib::PpacEvent>(
-				vme_entries,
-				GritVmeInputPath(grit_dir, "ppac", vme_run).Data(),
-				IngotOutputPath(ingot_dir, "vppac", trigger_type, xia_run).Data(),
-				"vppac",
-				true
-			);
+			if (detector == "t1du") {
+				result = forgerib::SmeltDetector<forgerib::DssdEvent>(
+					vme_entries_matched,
+					GritVmeInputPath(grit_dir, "t1du", vme_run).Data(),
+					IngotOutputPath(ingot_dir, "t1du", trigger_type, xia_run).Data(),
+					"t1du",
+					true
+				);
+			} else if (detector == "t1dd") {
+				result = forgerib::SmeltDetector<forgerib::DssdEvent>(
+					vme_entries_matched,
+					GritVmeInputPath(grit_dir, "t1dd", vme_run).Data(),
+					IngotOutputPath(ingot_dir, "t1dd", trigger_type, xia_run).Data(),
+					"t1dd",
+					true
+				);
+			} else if (detector == "t1csiu") {
+				result = forgerib::SmeltDetector<forgerib::CsiEvent<4>>(
+					vme_entries_matched,
+					GritVmeInputPath(grit_dir, "t1csiu", vme_run).Data(),
+					IngotOutputPath(ingot_dir, "t1csiu", trigger_type, xia_run).Data(),
+					"t1csiu",
+					true
+				);
+			} else if (detector == "t1csid") {
+				result = forgerib::SmeltDetector<forgerib::CsiEvent<13>>(
+					vme_entries_matched,
+					GritVmeInputPath(grit_dir, "t1csid", vme_run).Data(),
+					IngotOutputPath(ingot_dir, "t1csid", trigger_type, xia_run).Data(),
+					"t1csid",
+					true
+				);
+			} else if (detector == "tafd") {
+				result = forgerib::SmeltDetector<forgerib::TafdEvent>(
+					vme_entries_matched,
+					GritVmeInputPath(grit_dir, "tafd", vme_run).Data(),
+					IngotOutputPath(ingot_dir, "tafd", trigger_type, xia_run).Data(),
+					"tafd",
+					true
+				);
+			} else if (detector == "tafcsi") {
+				result = forgerib::SmeltDetector<forgerib::CsiEvent<12>>(
+					vme_entries_matched,
+					GritVmeInputPath(grit_dir, "tafcsi", vme_run).Data(),
+					IngotOutputPath(ingot_dir, "tafcsi", trigger_type, xia_run).Data(),
+					"tafcsi",
+					true
+				);
+			} else if (detector == "vppac") {
+				result = forgerib::SmeltDetector<forgerib::PpacEvent>(
+					vme_entries_matched,
+					GritVmeInputPath(grit_dir, "ppac", vme_run).Data(),
+					IngotOutputPath(ingot_dir, "vppac", trigger_type, xia_run).Data(),
+					"vppac",
+					true
+				);
+			}
 		} else {
 			std::cerr << "Error: Unsupported detector " << detector << ".\n";
 			return -1;
