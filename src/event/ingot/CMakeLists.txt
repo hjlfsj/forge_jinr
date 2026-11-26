@@ -22,6 +22,10 @@ add_library(csi_event csi_event.cpp)
 target_include_directories(csi_event PUBLIC ${PROJECT_SOURCE_DIR} ${ROOT_INCLUDE_DIRS})
 target_link_libraries(csi_event PUBLIC ROOT::Core ROOT::Tree ROOT::RIO)
 
+add_library(gagg_event gagg_event.cpp)
+target_include_directories(gagg_event PUBLIC ${PROJECT_SOURCE_DIR} ${ROOT_INCLUDE_DIRS})
+target_link_libraries(gagg_event PUBLIC ROOT::Core ROOT::Tree ROOT::RIO)
+
 add_library(vme_event vme_event.cpp)
 target_include_directories(vme_event PUBLIC ${PROJECT_SOURCE_DIR} ${ROOT_INCLUDE_DIRS})
 target_link_libraries(vme_event PUBLIC ROOT::Core ROOT::Tree ROOT::RIO)

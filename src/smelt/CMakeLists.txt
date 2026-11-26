@@ -20,7 +20,7 @@ add_library(smelt_t0csi_bloom smelt_t0csi_bloom.cpp)
 target_link_libraries(smelt_t0csi_bloom PUBLIC csi_event raw_csi_event)
 
 add_library(smelt_gagg smelt_gagg.cpp)
-target_link_libraries(smelt_gagg PUBLIC csi_event raw_csi_event)
+target_link_libraries(smelt_gagg PUBLIC  raw_csi_event gagg_event)
 
 add_library(smelt_t0csi smelt_t0csi.cpp)
 target_link_libraries(smelt_t0csi PUBLIC csi_event align_event)

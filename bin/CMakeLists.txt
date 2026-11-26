@@ -69,6 +69,7 @@ target_link_libraries(
 	smelt_t0csi       # have T0CsI in both vme and XIA
 	smelt_t0csi_trace
 	csi_event
+	gagg_event
 	dssd_event
 	tafd_event
 	align_event

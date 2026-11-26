@@ -10,3 +10,4 @@ build/bin/crush/crush_gagg $1
 
 ./build/bin/coke -r $1 
 ./build/bin/smelt -r $1 -t main t0d1 t0d2 gagg beam 
+./build/bin/smelt -r $1 -t t1 t0d1 t0d2 gagg beam 

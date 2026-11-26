@@ -8,7 +8,7 @@
 #include <TH1F.h>
 #include <TTree.h>
 
-#include "include/event/ingot/csi_event.h"
+#include "include/event/ingot/gagg_event.h"
 #include "include/event/ore/raw_csi_event.h"
 
 namespace forgerib {
@@ -18,23 +18,9 @@ namespace {
 constexpr size_t kSlotNum = 1000;
 constexpr int kGaggNum = 16;
 
-void ResetGaggEvent(CsiEvent<kGaggNum> &csi) {
-	csi.flag = 0;
-	for (int i = 0; i < kGaggNum; ++i) {
-		csi.valid[i] = false;
-		csi.time[i] = 0.0;
-		csi.energy[i] = 0;
-	}
-}
-
-void UpdateGaggEvent(const RawCsiEvent &raw, CsiEvent<kGaggNum> &csi) {
+void UpdateGaggEvent(const RawCsiEvent &raw, GaggEvent &gagg) {
 	if (raw.index < 0 || raw.index >= kGaggNum) return;
-	if (!csi.valid[raw.index] || raw.energy > csi.energy[raw.index]) {
-		csi.valid[raw.index] = true;
-		csi.flag |= 1ull << raw.index;
-		csi.time[raw.index] = raw.time;
-		csi.energy[raw.index] = raw.energy;
-	}
+	Update(gagg, raw.index, raw.energy, raw.time);
 }
 
 int SmeltWithTrigger(
@@ -47,8 +33,8 @@ int SmeltWithTrigger(
 	TFile opf(output_path, "recreate");
 	TH1F forge_window("fw", "forge window", 200, -window, window);
 	TTree opt("tree", "forged gagg");
-	CsiEvent<kGaggNum> csi;
-	SetupOutput(&opt, csi);
+	GaggEvent gagg;
+	SetupOutput(&opt, gagg);
 
 	TFile ipf(path, "read");
 	TTree *ipt = (TTree*)ipf.Get("tree");
@@ -59,9 +45,9 @@ int SmeltWithTrigger(
 	RawCsiEvent raw;
 	SetupInput(ipt, raw);
 
-	CsiEvent<kGaggNum> slots[kSlotNum];
+	GaggEvent slots[kSlotNum];
 	for (size_t i = 0; i < kSlotNum; ++i) {
-		ResetGaggEvent(slots[i]);
+		Reset(slots[i]);
 	}
 	size_t tofill_entry = 0;
 
@@ -100,16 +86,16 @@ int SmeltWithTrigger(
 		if (min_time_entry < tofill_entry) continue;
 		if (min_time_entry - tofill_entry >= kSlotNum) {
 			for (size_t fill = tofill_entry; fill <= min_time_entry-kSlotNum; ++fill) {
-				csi = slots[fill%kSlotNum];
+				gagg = slots[fill%kSlotNum];
 				opt.Fill();
-				ResetGaggEvent(slots[fill%kSlotNum]);
+				Reset(slots[fill%kSlotNum]);
 			}
 			tofill_entry = min_time_entry - kSlotNum + 1;
 		}
 		UpdateGaggEvent(raw, slots[min_time_entry%kSlotNum]);
 	}
 	for (size_t fill = tofill_entry; fill < trigger_time.size(); ++fill) {
-		csi = slots[fill%kSlotNum];
+		gagg = slots[fill%kSlotNum];
 		opt.Fill();
 	}
 	if (report) printf("\b\b\b\b100%%\n");
@@ -131,8 +117,8 @@ int SmeltWithoutTrigger(
 	TFile opf(output_path, "recreate");
 	TH1F forge_window("fw", "forge window", 200, -window, window);
 	TTree opt("tree", "forged gagg");
-	CsiEvent<kGaggNum> csi;
-	SetupOutput(&opt, csi);
+	GaggEvent gagg;
+	SetupOutput(&opt, gagg);
 
 	TFile ipf(path, "read");
 	TTree *ipt = (TTree*)ipf.Get("tree");
@@ -143,7 +129,7 @@ int SmeltWithoutTrigger(
 	RawCsiEvent raw;
 	SetupInput(ipt, raw);
 
-	ResetGaggEvent(csi);
+	Reset(gagg);
 	double ref_time = -1.0;
 	long long total_entries = ipt->GetEntriesFast();
 	long long last_percentage = 0;
@@ -158,20 +144,20 @@ int SmeltWithoutTrigger(
 			fflush(stdout);
 		}
 		ipt->GetEntry(entry);
-		if (csi.flag == 0) {
-			UpdateGaggEvent(raw, csi);
+		if (gagg.num == 0) {
+			UpdateGaggEvent(raw, gagg);
 			ref_time = raw.time;
 		} else if (raw.time - ref_time < window) {
 			forge_window.Fill(raw.time - ref_time);
-			UpdateGaggEvent(raw, csi);
+			UpdateGaggEvent(raw, gagg);
 		} else {
 			opt.Fill();
-			ResetGaggEvent(csi);
-			UpdateGaggEvent(raw, csi);
+			Reset(gagg);
+			UpdateGaggEvent(raw, gagg);
 			ref_time = raw.time;
 		}
 	}
-	if (csi.flag != 0) opt.Fill();
+	if (gagg.num != 0) opt.Fill();
 	if (report) printf("\b\b\b\b100%%\n");
 
 	opf.cd();
